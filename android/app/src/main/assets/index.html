@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Асистент ЛР1 СІС</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@600&display=swap">
+<style>
+/* Layout: instrument panel — variant bar on top, tabs (AR finder / budget / measurements / questions), cards in an auto-fit grid */
+:root {
+  --bg: #eef3f4; --panel: #ffffff; --ink: #0f1d24; --muted: #56676f; --line: #d3dde1;
+  --accent: #0a6f8c; --accent-ink: #ffffff; --signal: #b87500; --ok: #1d8a4e; --bad: #c23b2b;
+  --field: #f6f9fa;
+  --f-display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --f-body: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0c1317; --panel: #131d22; --ink: #e2ebee; --muted: #8c9fa7; --line: #233239;
+  --accent: #3cb3d4; --accent-ink: #06222b; --signal: #f0b23a; --ok: #46c27b; --bad: #ef6a5a; --field: #0f181c;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0c1317; --panel: #131d22; --ink: #e2ebee; --muted: #8c9fa7; --line: #233239;
+  --accent: #3cb3d4; --accent-ink: #06222b; --signal: #f0b23a; --ok: #46c27b; --bad: #ef6a5a; --field: #0f181c;
+  color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(14px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-bottom, 0px)); }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 14px; }
+header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end; justify-content: space-between; }
+h1 { font: 600 clamp(18px, 3.4vw, 24px)/1.15 var(--f-display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.variant { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { font: 12px var(--f-data); padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); white-space: nowrap; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.summary > div { background: var(--panel); padding: 10px 12px; min-width: 0; }
+.lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.big { font: 600 22px/1.2 var(--f-data); font-variant-numeric: tabular-nums; }
+.big small { font-size: 13px; color: var(--muted); font-weight: 400; }
+nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+nav.tabs button { font: 500 14px var(--f-body); background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 9px 12px; cursor: pointer; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; align-items: start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; min-width: 0; display: grid; gap: 10px; }
+.card h2 { font: 600 15px var(--f-body); margin: 0; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.card h2 .ref { font: 400 12px var(--f-data); color: var(--muted); }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 10px; }
+label.f { display: grid; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+input, select { font: 14px var(--f-data); color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 7px 8px; width: 100%; min-width: 0; }
+input.auto { border-style: dashed; }
+.hint { font-size: 12px; color: var(--muted); margin: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.tscroll { overflow-x: auto; }
+th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; }
+td.num, th.num { text-align: right; font-family: var(--f-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.total td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: 0; }
+.btn { font: 600 14px var(--f-body); background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 5px; padding: 10px 14px; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pill { font: 600 11px var(--f-body); letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--signal); }
+.formula { font: 13px var(--f-data); background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 8px; overflow-x: auto; white-space: pre; }
+svg text { fill: var(--muted); font: 11px var(--f-data); }
+/* AR viewport: always dark — it shows the sky through the camera */
+.ar { position: relative; background: #05090b; border-radius: 6px; overflow: hidden; aspect-ratio: 3 / 4; max-height: 78vh; width: 100%; max-width: 100%; justify-self: center; }
+@media (min-width: 760px) { .ar { aspect-ratio: 4 / 3; } }
+.ar video, .ar canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ar video { object-fit: cover; }
+.hud { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px; background: linear-gradient(transparent, rgba(0,0,0,.78)); color: #eaf4f7; font: 13px var(--f-data); display: grid; gap: 4px; pointer-events: none; }
+.hud .guide { font: 600 18px var(--f-body); }
+.hud .on { color: #4fe08e; }
+.ar .start { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; color: #dbe8ec; padding: 20px; }
+.ar .start p { margin: 0; max-width: 34ch; font-size: 13px; color: #a9bcc3; }
+.status { display: grid; gap: 4px; font-size: 13px; }
+.status div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 3px; }
+.status b { font: 600 13px var(--f-data); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Асистент ЛР1 · супутникові сигнали</h1>
+      <div class="sub">Наведення антени, бюджет C/N, BER, журнал вимірювань Promax TV Explorer II</div>
+    </div>
+    <div class="variant">
+      <label class="f" style="min-width:210px">Варіант (бригада), додаток 4
+        <select id="variant"></select>
+      </label>
+      <span class="chip" id="vchip"></span>
+    </div>
+  </header>
+
+  <section class="summary" aria-label="Підсумок">
+    <div><div class="lbl">Кут місця El</div><div class="big" id="sEl">—</div></div>
+    <div><div class="lbl">Азимут Az (істинний)</div><div class="big" id="sAz">—</div></div>
+    <div><div class="lbl">Відстань d</div><div class="big" id="sD">—</div></div>
+    <div><div class="lbl">C/N</div><div class="big" id="sCN">—</div></div>
+    <div><div class="lbl">Eb/N0</div><div class="big" id="sEb">—</div></div>
+    <div><div class="lbl">BER QPSK</div><div class="big" id="sBER">—</div></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="finder" aria-selected="true">Пошук супутника</button>
+    <button role="tab" data-tab="budget" aria-selected="false">Розрахунок</button>
+    <button role="tab" data-tab="meas" aria-selected="false">Вимірювання</button>
+    <button role="tab" data-tab="quest" aria-selected="false">Контрольні питання</button>
+  </nav>
+
+  <!-- ===== AR FINDER ===== -->
+  <section data-panel="finder" class="grid">
+    <div class="ar" id="ar">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="cv"></canvas>
+      <div class="start" id="arStart">
+        <div style="font:600 17px var(--f-body)">Наведіть телефон на небо</div>
+        <p>Камера показує небо, GPS визначає вашу позицію, а гіроскоп і компас — куди дивиться камера. Маркер покаже, де висить супутник.</p>
+        <div><button class="btn" id="btnStart">Увімкнути камеру, GPS і датчики</button></div>
+        <p id="secureNote"></p>
+      </div>
+      <div class="hud" id="hud" hidden>
+        <div class="guide" id="hudGuide">—</div>
+        <div id="hudLine1">—</div>
+        <div id="hudLine2">—</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Стан датчиків</h2>
+      <div class="status">
+        <div><span>Камера</span><b id="stCam">вимкнена</b></div>
+        <div><span>GPS</span><b id="stGps">вимкнений</b></div>
+        <div><span>Орієнтація / компас</span><b id="stOri">вимкнено</b></div>
+        <div><span>Позиція</span><b id="stPos">—</b></div>
+        <div><span>Ціль: Az / El</span><b id="stTgt">—</b></div>
+        <div><span>Камера: Az / El</span><b id="stCamDir">—</b></div>
+      </div>
+      <div class="fields">
+        <label class="f">Магнітне схилення, ° (Київ ≈ +8)
+          <input id="decl" inputmode="decimal" value="8"></label>
+        <label class="f">Кут огляду камери (ширина екрана), °
+          <input id="fov" inputmode="decimal" value="60"></label>
+      </div>
+      <div class="status" id="diag" aria-live="polite"></div>
+      <label class="row" style="font-size:13px"><input type="checkbox" id="useGps" checked style="width:auto"> Підставляти GPS-координати в розрахунок</label>
+      <p class="hint">Тримайте телефон подалі від металу й магнітів (антена, поворотний пристрій), компас бреше поруч із ними. Перед стартом покалібруйте компас рухом «вісімкою». Пунктир — геостаціонарна дуга, на ній позначені сусідні позиції, щоб упізнати свою за ними. Маркер стає зеленим, коли камера дивиться на супутник з точністю до 2°.</p>
+    </div>
+  </section>
+
+  <!-- ===== BUDGET ===== -->
+  <section data-panel="budget" class="grid" hidden>
+    <div class="card">
+      <h2>Канал і місце прийому <span class="ref">ДЗ п.2–3</span></h2>
+      <div class="fields">
+        <label class="f">Широта антени (° ′ ″ N або десяткова)<input id="lat" value="50° 26′ 51.15″ N"></label>
+        <label class="f">Довгота антени (° ′ ″ E)<input id="lon" value="30° 27′ 28.12″ E"></label>
+        <label class="f">Позиція супутника, °E<input id="sat" inputmode="decimal"></label>
+        <label class="f">Частота каналу, МГц<input id="freq" inputmode="decimal"></label>
+        <label class="f">Поляризація<select id="pol"><option>V</option><option>H</option></select></label>
+        <label class="f">Символьна швидкість, кбод<input id="rs" inputmode="decimal"></label>
+        <label class="f">FEC<select id="fec"><option>1/2</option><option>2/3</option><option>3/4</option><option>5/6</option><option>7/8</option></select></label>
+        <label class="f">Модуляція<select id="mod"><option value="qpsk">QPSK (DVB-S)</option><option value="8psk">8PSK (DVB-S2)</option></select></label>
+      </div>
+      <p class="hint" id="geoText"></p>
+    </div>
+    <div class="card">
+      <h2>Приймальний тракт <span class="ref">ф. (4)–(6)</span></h2>
+      <div class="fields">
+        <label class="f">EIRP з карти покриття, дБВт<input id="eirp" inputmode="decimal" value="49.7"></label>
+        <label class="f">Підсилення антени G<sub>R</sub>, дБ<input id="gr" inputmode="decimal" value="40"></label>
+        <label class="f">Поглинання в атмосфері, дБ<input id="latm" inputmode="decimal" value="1"></label>
+        <label class="f">Інші втрати (наведення, поляр.), дБ<input id="lext" inputmode="decimal" value="0"></label>
+        <label class="f">NF МШП, дБ (з додатка 3)<input id="nf" class="auto" inputmode="decimal" placeholder="авто"></label>
+        <label class="f">T<sub>ant</sub>, К (з рис. 5)<input id="tant" class="auto" inputmode="decimal" placeholder="авто"></label>
+        <label class="f">B<sub>N</sub> / R<sub>s</sub><input id="bnk" inputmode="decimal" value="1.12"></label>
+      </div>
+      <p class="hint" id="lnbText"></p>
+      <p class="hint">Поля з пунктиром рахуються автоматично. Впишіть своє значення, якщо викладач дав інше.</p>
+    </div>
+    <div class="card">
+      <h2>Бюджет радіолінії</h2>
+      <div class="tscroll"><table id="budgetTable"></table></div>
+      <div class="formula" id="cnFormula"></div>
+    </div>
+    <div class="card">
+      <h2>Eb/N0 і BER <span class="ref">ДЗ п.4</span></h2>
+      <div class="tscroll"><table id="berTable"></table></div>
+      <svg id="berChart" viewBox="0 0 560 300" role="img" aria-label="Графік BER від Eb/N0"></svg>
+      <p class="hint">Суцільна лінія — QPSK, штрихова — 8PSK, обидві без кодування (теорія). Горизонталь — поріг декодування BER = 10⁻⁴. Помаранчева точка — розрахунок, зелена — виміряне C/N з вкладки «Вимірювання».</p>
+      <div class="row"><button class="btn ghost" id="btnCopy">Скопіювати результати для звіту</button><span class="hint" id="copyMsg"></span></div>
+    </div>
+  </section>
+
+  <!-- ===== MEASUREMENTS ===== -->
+  <section data-panel="meas" class="grid" hidden>
+    <div class="card" style="grid-column:1/-1">
+      <h2>Журнал вимірювань <span class="ref">п.2–6 порядку виконання</span></h2>
+      <div class="tscroll"><table id="measTable"></table></div>
+      <p class="hint">Значення зберігаються лише в цьому браузері. «BER за C/N» — теоретичне BER до декодера Вітербі для виміряного C/N; його порівнюють із CBER (п.3). Для каналу з додатка 2 модуляція 8PSK. MER при чисто гаусовому шумі близький до Es/N0, тож велика різниця між ними вказує на фазовий або амплітудний шум.</p>
+    </div>
+    <div class="card">
+      <h2>MER за констеляцією <span class="ref">ф. (3)</span></h2>
+      <p class="hint">Зчитайте з екрана приладу середній радіус розкиду точки σ відносно відстані від центру до ідеальної точки A (в однакових поділках).</p>
+      <div class="fields">
+        <label class="f">A — до ідеальної точки<input id="merA" inputmode="decimal" value="10"></label>
+        <label class="f">σ — розкид (СКВ)<input id="merS" inputmode="decimal" value="1.2"></label>
+      </div>
+      <div class="big" id="merOut">—</div>
+      <p class="hint">MER = 20·lg(A/σ).</p>
+    </div>
+  </section>
+
+  <!-- ===== QUESTIONS ===== -->
+  <section data-panel="quest" class="grid" hidden>
+    <div class="card">
+      <h2>1. Кабель перед МШП</h2>
+      <div class="fields">
+        <label class="f">Втрати кабелю, дБ<input id="qL" inputmode="decimal" value="5"></label>
+        <label class="f">Підсилення МШП G₁, дБ<input id="qG1" inputmode="decimal" value="52"></label>
+        <label class="f">Шум приймача F, дБ<input id="qF" inputmode="decimal" value="10"></label>
+      </div>
+      <div class="tscroll"><table id="q1Table"></table></div>
+    </div>
+    <div class="card">
+      <h2>4. Діаметр антени для іншого міста</h2>
+      <div class="fields">
+        <label class="f">Широта<input id="qLat" value="48.574"></label>
+        <label class="f">Довгота<input id="qLon" value="39.307"></label>
+        <label class="f">EIRP там, дБВт<input id="qEirp" inputmode="decimal" value="47"></label>
+        <label class="f">Поточний діаметр, м<input id="qD" inputmode="decimal" value="1.5"></label>
+      </div>
+      <div class="tscroll"><table id="q4Table"></table></div>
+      <p class="hint">За замовчуванням — Луганськ і EIRP ≈ 47 дБВт з карти 13A Europe 6.</p>
+    </div>
+    <div class="card">
+      <h2>5. Коефіцієнт використання поверхні</h2>
+      <div class="big" id="etaOut">—</div>
+      <p class="hint">η = G / (πD/λ)². Для дзеркальних антен зазвичай 0,55–0,7; оптимальний опромінювач дає спад діаграми ≈ −10 дБ на краю дзеркала.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+// ---------- data (методичка, додатки 3–5) ----------
+const VARS = [
+  [1,9,11747,"H",27500,"3/4","Eutelsat 9A Europe"],[2,13,12520,"V",27500,"3/4","13A Europe 6"],
+  [3,16,11131,"V",14815,"5/6","16A Europe B"],[4,19.2,10773,"H",22000,"3/4","Astra 1M Europe"],
+  [5,23.5,11836,"H",27500,"5/6","Astra 3B PanEuropean"],[6,28.2,11546,"H",27500,"2/3","Eutelsat 28A S1"],
+  [7,9,11766,"V",27500,"3/4","Eutelsat 9A Europe"],[8,13,12437,"H",27500,"3/4","13B Europe 8"],
+  [9,16,11471,"V",29950,"3/4","16A Europe B"],[10,19.2,10847,"V",22000,"5/6","Astra 1M Europe"],
+  [11,23.5,11895,"V",27500,"5/6","Astra 3B PanEuropean"],[12,28.2,11623,"H",27500,"2/3","Eutelsat 28A S1"],
+  [13,9,12207,"H",27500,"3/4","Eutelsat 9A Europe"],[14,13,10873,"V",27500,"3/4","13A Europe 6"],
+  [15,16,12656,"V",4883,"1/2","16A Europe B"],[16,19.2,12168,"V",27500,"3/4","Astra 1M Europe"],
+  [17,23.5,12168,"V",27500,"3/4","Astra 3B PanEuropean"],[18,28.2,12560,"H",27500,"2/3","Eutelsat 28A Fixed"]
+];
+// NF Invacom SNH-031 vs IF, MHz -> dB (зчитано з графіків додатка 3)
+const NF = {
+  VL: [[1050,.38],[1550,.27],[2150,.23]], HL: [[1050,.40],[1550,.27],[2150,.35]],
+  VH: [[950,.37],[1550,.26],[2150,.41]],  HH: [[950,.36],[1550,.30],[2150,.385]]
+};
+const ARC_SATS = [4.8, 9, 13, 16, 19.2, 23.5, 28.2, 31.5, 36, 42];
+const R = 6371, AGSO = 42164, T0 = 290, KDB = -228.6, D2R = Math.PI / 180;
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const num = (id, dflt) => { const v = parseFloat(String($(id).value).replace(",", ".")); return isFinite(v) ? v : dflt; };
+const fmt = (x, d = 1) => isFinite(x) ? x.toFixed(d).replace(".", ",").replace("-", "−") : "—";
+const lg = x => Math.log10(x);
+function sup(n) { const m = {"-":"⁻","0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"}; return String(n).split("").map(c => m[c] || c).join(""); }
+function fmtBer(p) {
+  if (!isFinite(p)) return "—";
+  if (p <= 0 || p < 1e-300) return "< 10⁻³⁰⁰";
+  if (p >= 0.01) return fmt(p, 3);
+  const e = Math.floor(lg(p)), m = p / Math.pow(10, e);
+  return fmt(m, 1) + "·10" + sup(e);
+}
+function erfc(x) { // Numerical Recipes, rel. error < 1.2e-7
+  const z = Math.abs(x), t = 1 / (1 + .5 * z);
+  const r = t * Math.exp(-z*z - 1.26551223 + t*(1.00002368 + t*(.37409196 + t*(.09678418 + t*(-.18628806 + t*(.27886807 + t*(-1.13520398 + t*(1.48851587 + t*(-.82215223 + t*.17087277)))))))));
+  return x >= 0 ? r : 2 - r;
+}
+const berQpsk = ebDb => .5 * erfc(Math.sqrt(Math.pow(10, ebDb / 10)));
+const ber8psk = ebDb => erfc(Math.sqrt(3 * Math.pow(10, ebDb / 10)) * Math.sin(Math.PI / 8)) / 3;
+function parseCoord(s, neg) {
+  s = String(s).trim().toUpperCase().replace(/,/g, ".");
+  const n = s.match(/-?\d+(\.\d+)?/g); if (!n) return NaN;
+  let v = Math.abs(+n[0]) + (n[1] ? +n[1] / 60 : 0) + (n[2] ? +n[2] / 3600 : 0);
+  if (s.startsWith("-") || new RegExp("[" + neg + "]").test(s.replace(/[^A-ZА-Я]/g, ""))) v = -v;
+  return v;
+}
+function interp(pts, x) {
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) if (x <= pts[i][0]) {
+    const [x0, y0] = pts[i-1], [x1, y1] = pts[i]; return y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
+  return pts[pts.length - 1][1];
+}
+// Положення супутника з точки (lat, lon): формули (1)–(2) методички; El через atan2 — так видно й супутники під горизонтом
+function look(lat, lon, satLon) {
+  const B = (lon - satLon) * D2R, la = lat * D2R;
+  const b = Math.acos(Math.cos(B) * Math.cos(la));
+  const d = Math.sqrt(R*R + AGSO*AGSO - 2*R*AGSO*Math.cos(b));
+  const el = Math.atan2(Math.cos(b) - R / AGSO, Math.sin(b)) / D2R;
+  let az = 180 + Math.asin(Math.max(-1, Math.min(1, Math.sin(B) / Math.sin(b)))) / D2R;
+  if (lat < 0) az = (360 - az + 180) % 360; // південна півкуля: дзеркально
+  return { B: B / D2R, b: b / D2R, d, el, az };
+}
+const tantAuto = el => Math.pow(10, lg(3) + (lg(140) - lg(3)) * Math.max(0, Math.min(90, 90 - el)) / 90);
+
+// ---------- state & storage ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("sislab1." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("sislab1." + k, JSON.stringify(v)); } catch {} }
+};
+let calc = {};
+let gpsFix = null;
+
+// ---------- variant ----------
+const vSel = $("variant");
+VARS.forEach(v => { const o = document.createElement("option"); o.value = v[0]; o.textContent = `${v[0]} · ${v[1]}°E · ${v[2]} ${v[3]}`; vSel.appendChild(o); });
+function applyVariant(n) {
+  const v = VARS.find(x => x[0] == n) || VARS[13];
+  $("sat").value = v[1]; $("freq").value = v[2]; $("pol").value = v[3]; $("rs").value = v[4]; $("fec").value = v[5];
+  $("vchip").textContent = "Промінь: " + v[6];
+}
+vSel.value = store.get("variant", 14); applyVariant(vSel.value);
+vSel.addEventListener("change", () => { store.set("variant", vSel.value); applyVariant(vSel.value); recalc(); });
+
+// ---------- tabs ----------
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+function showTab(t) {
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
+  document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== t);
+  store.set("tab", t); if (t === "finder") resizeCanvas();
+}
+
+// ---------- main calculation ----------
+function recalc() {
+  const lat = parseCoord($("lat").value, "S"), lon = parseCoord($("lon").value, "WЗ");
+  const sat = num("sat", 13), f = num("freq", 10873), pol = $("pol").value, rs = num("rs", 27500) * 1e3;
+  const fecTxt = $("fec").value, fec = fecTxt.split("/").reduce((p, q) => p / q), mod = $("mod").value, bits = mod === "8psk" ? 3 : 2;
+  const g = look(lat, lon, sat);
+  const lam = 3e8 / (f * 1e6), fsl = 20 * lg(4 * Math.PI * g.d * 1e3 / lam);
+  const high = f >= 11700, lo = high ? 10600 : 9750, ifm = f - lo;
+  const nfAuto = interp(NF[pol + (high ? "H" : "L")], ifm);
+  const nf = num("nf", nfAuto), tant = num("tant", tantAuto(g.el));
+  $("nf").placeholder = "авто: " + fmt(nfAuto, 2); $("tant").placeholder = "авто: " + fmt(tantAuto(g.el), 0);
+  const tlna = T0 * (Math.pow(10, nf / 10) - 1), ts = tant + tlna, tsDb = 10 * lg(ts);
+  const bn = num("bnk", 1.12) * rs, bnDb = 10 * lg(bn);
+  const eirp = num("eirp", 49.7), gr = num("gr", 40), latm = num("latm", 1), lext = num("lext", 0);
+  const cn = eirp + gr - (fsl + latm + lext) - KDB - tsDb - bnDb;
+  const esn0 = cn + 10 * lg(bn / rs), ebn0 = esn0 - 10 * lg(bits);
+  const ru = bits * rs * fec * 188 / 204, ebu = cn + 10 * lg(bn / ru);
+  const ber = mod === "8psk" ? ber8psk(ebn0) : berQpsk(ebn0);
+  calc = { lat, lon, sat, f, pol, rs, fecTxt, mod, bits, g, lam, fsl, lo, ifm, high, nf, tant, tlna, ts, tsDb, bn, bnDb, eirp, gr, latm, lext, cn, esn0, ebn0, ru, ebu, ber };
+
+  $("sEl").innerHTML = fmt(g.el, 2) + "<small>°</small>";
+  $("sAz").innerHTML = fmt(g.az, 2) + "<small>°</small>";
+  $("sD").innerHTML = Math.round(g.d).toLocaleString("uk") + "<small> км</small>";
+  $("sCN").innerHTML = fmt(cn, 1) + "<small> дБ</small>";
+  $("sEb").innerHTML = fmt(ebn0, 1) + "<small> дБ</small>";
+  $("sBER").textContent = fmtBer(ber);
+  $("geoText").textContent = isFinite(lat) && isFinite(lon)
+    ? `φE = ${fmt(lon, 4)}°, λE = ${fmt(lat, 4)}°; B = ${fmt(g.B, 3)}°, b = ${fmt(g.b, 3)}°. ` + (g.el < 0 ? "Супутник під горизонтом!" : g.el < 10 ? "Низький кут місця: можливе затінення." : "")
+    : "Не вдалося розібрати координати. Приклад: 50° 26′ 51.15″ N або 50.4475.";
+  $("lnbText").textContent = `${high ? "Верхній" : "Нижній"} діапазон, гетеродин ${lo / 1000} ГГц → ПЧ ${fmt(ifm, 0)} МГц; T_LNA = ${fmt(tlna, 1)} К; T_S = ${fmt(ts, 1)} К.`;
+
+  const rows = [
+    ["[EIRP]", "карта покриття", eirp], ["[G_R]", "антена", gr], ["FSL", `λ = ${fmt(lam * 100, 3)} см`, -fsl],
+    ["Атмосфера", "", -latm], ["Інші втрати", "", -lext], ["−[k]", "1,38·10⁻²³ Дж/К", -KDB],
+    ["[T_S]", fmt(ts, 1) + " К", -tsDb], ["[B_N]", fmt(bn / 1e6, 2) + " МГц", -bnDb]
+  ];
+  $("budgetTable").innerHTML = "<tr><th>Складова</th><th>Примітка</th><th class='num'>дБ</th></tr>" +
+    rows.filter(r => r[2] !== 0 || r[0] === "[EIRP]").map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${r[2] > 0 ? "+" : ""}${fmt(r[2], 2)}</td></tr>`).join("") +
+    `<tr class="total"><td>C/N</td><td>G/T = ${fmt(gr - tsDb, 1)} дБ/К</td><td class="num">${fmt(cn, 2)}</td></tr>`;
+  $("cnFormula").textContent = `C/N = ${fmt(eirp,1)} + ${fmt(gr,1)} − ${fmt(fsl + latm + lext,2)} + 228,6 − ${fmt(tsDb,2)} − ${fmt(bnDb,2)} = ${fmt(cn,2)} дБ`;
+  const thr = findEb(1e-4, mod);
+  $("berTable").innerHTML = "<tr><th>Величина</th><th class='num'>Значення</th></tr>" + [
+    ["Es/N0 = C/N + 10·lg(B_N/R_s)", fmt(esn0, 2) + " дБ"],
+    [`Eb/N0 канальний (R_b = ${fmt(bits * rs / 1e6, 1)} Мбіт/с)`, fmt(ebn0, 2) + " дБ"],
+    [`Eb/N0 корисний (R_u = ${fmt(ru / 1e6, 2)} Мбіт/с)`, fmt(ebu, 2) + " дБ"],
+    ["BER до декодера (теорія)", fmtBer(ber)],
+    ["Поріг: Eb/N0 при BER = 10⁻⁴", fmt(thr, 1) + " дБ"],
+    ["Запас до порогу", `<span class="${ebn0 - thr > 3 ? "ok" : ebn0 > thr ? "warn" : "bad"}">${fmt(ebn0 - thr, 1)} дБ</span>`]
+  ].map(r => `<tr><td>${r[0]}</td><td class="num">${r[1]}</td></tr>`).join("");
+
+  drawBer(); renderMeas(); renderQuest();
+}
+function findEb(target, mod) { let lo = -5, hi = 20; for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2, p = mod === "8psk" ? ber8psk(m) : berQpsk(m); if (p > target) lo = m; else hi = m; } return (lo + hi) / 2; }
+
+// ---------- BER chart ----------
+function drawBer() {
+  const W = 560, H = 300, L = 52, Rr = 14, T = 12, Bm = 34, x0 = 0, x1 = 16, y0 = -12, y1 = 0;
+  const X = x => L + (x - x0) / (x1 - x0) * (W - L - Rr), Y = p => T + (y1 - Math.max(y0, Math.min(y1, lg(p)))) / (y1 - y0) * (H - T - Bm);
+  let s = "";
+  for (let e = y0; e <= y1; e += 2) s += `<line x1="${L}" x2="${W - Rr}" y1="${Y(Math.pow(10, e))}" y2="${Y(Math.pow(10, e))}" stroke="var(--line)"/><text x="${L - 6}" y="${Y(Math.pow(10, e)) + 4}" text-anchor="end">10${sup(e)}</text>`;
+  for (let x = 0; x <= x1; x += 2) s += `<line x1="${X(x)}" x2="${X(x)}" y1="${T}" y2="${H - Bm}" stroke="var(--line)"/><text x="${X(x)}" y="${H - Bm + 15}" text-anchor="middle">${x}</text>`;
+  s += `<text x="${(L + W - Rr) / 2}" y="${H - 4}" text-anchor="middle">Eb/N0, дБ</text>`;
+  const curve = fn => { let d = ""; for (let x = 0; x <= x1 + 1e-9; x += .1) { const p = fn(x); if (lg(p) < y0) break; d += (d ? "L" : "M") + X(x).toFixed(1) + "," + Y(p).toFixed(1); } return d; };
+  s += `<path d="${curve(berQpsk)}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+  s += `<path d="${curve(ber8psk)}" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="5 4"/>`;
+  s += `<line x1="${L}" x2="${W - Rr}" y1="${Y(1e-4)}" y2="${Y(1e-4)}" stroke="var(--bad)" stroke-dasharray="2 3"/><text x="${W - Rr - 2}" y="${Y(1e-4) - 4}" text-anchor="end" style="fill:var(--bad)">поріг 10⁻⁴</text>`;
+  const pt = (eb, color, label) => {
+    const p = calc.mod === "8psk" ? ber8psk(eb) : berQpsk(eb);
+    const cx = X(Math.min(eb, x1)), cy = Y(Math.max(p, 1e-12));
+    const off = eb > x1 || p < 1e-12;
+    s += `<circle cx="${cx}" cy="${cy}" r="5" fill="${color}" stroke="var(--panel)" stroke-width="2"/>` +
+      `<text x="${cx - 8}" y="${cy - 9}" text-anchor="end" style="fill:${color}">${label}${off ? " (за шкалою)" : ""}</text>`;
+  };
+  if (isFinite(calc.ebn0)) pt(calc.ebn0, "var(--signal)", "розрах. " + fmt(calc.ebn0, 1) + " дБ");
+  const m = measData()[0]; const mcn = parseFloat(String(m.cn || "").replace(",", "."));
+  if (isFinite(mcn)) { const eb = mcn + 10 * lg(calc.bn / calc.rs) - 10 * lg(calc.bits); pt(eb, "var(--ok)", "вимір. " + fmt(eb, 1) + " дБ"); }
+  $("berChart").innerHTML = s;
+}
+
+// ---------- measurements ----------
+const MEAS_ROWS = [
+  ["opt", "Оптимальне наведення, 10873 V (п.2)", "qpsk"],
+  ["az", "Поріг декодування, відстроювання по Az (п.5)", "qpsk"],
+  ["el", "Поріг декодування, відстроювання по El (п.5)", "qpsk"],
+  ["psk8", "Канал з додатка 2, 8PSK (п.6)", "8psk"],
+  ["near", "Сусідній канал QPSK (п.6)", "qpsk"]
+];
+function measData() { const d = store.get("meas", {}); return MEAS_ROWS.map(r => Object.assign({ id: r[0] }, d[r[0]] || {})); }
+function renderMeas() {
+  const t = $("measTable");
+  if (!t.dataset.built) {
+    t.innerHTML = "<tr><th>Режим</th><th>C/N, дБ</th><th>MER, дБ</th><th>CBER</th><th>VBER</th><th class='num'>BER за C/N</th><th class='num'>Es/N0 − MER</th></tr>" +
+      MEAS_ROWS.map(r => `<tr data-row="${r[0]}"><td>${r[1]}</td>` + ["cn", "mer", "cber", "vber"].map(k => `<td><input id="m_${r[0]}_${k}" data-k="${k}" style="min-width:76px" placeholder="${k === "cn" || k === "mer" ? "дБ" : "напр. 2E-5"}"></td>`).join("") + `<td class="num" data-out="ber"></td><td class="num" data-out="dm"></td></tr>`).join("");
+    const saved = store.get("meas", {});
+    MEAS_ROWS.forEach(r => ["cn", "mer", "cber", "vber"].forEach(k => { $(`m_${r[0]}_${k}`).value = (saved[r[0]] || {})[k] || ""; }));
+    t.addEventListener("input", e => {
+      const tr = e.target.closest("tr"); if (!tr) return;
+      const all = store.get("meas", {}); const row = all[tr.dataset.row] || {}; row[e.target.dataset.k] = e.target.value; all[tr.dataset.row] = row; store.set("meas", all);
+      renderMeas(); drawBer();
+    });
+    t.dataset.built = 1;
+  }
+  measData().forEach((m, i) => {
+    const tr = t.querySelector(`tr[data-row="${m.id}"]`), mod = MEAS_ROWS[i][2], bits = mod === "8psk" ? 3 : 2;
+    const cn = parseFloat(String(m.cn || "").replace(",", ".")), mer = parseFloat(String(m.mer || "").replace(",", "."));
+    const es = cn + 10 * lg(calc.bn / calc.rs), eb = es - 10 * lg(bits);
+    tr.querySelector('[data-out="ber"]').textContent = isFinite(cn) ? fmtBer(mod === "8psk" ? ber8psk(eb) : berQpsk(eb)) : "—";
+    tr.querySelector('[data-out="dm"]').textContent = isFinite(cn) && isFinite(mer) ? fmt(es - mer, 1) + " дБ" : "—";
+  });
+}
+["merA", "merS"].forEach(id => $(id).addEventListener("input", mer));
+function mer() { const a = num("merA", NaN), s = num("merS", NaN); $("merOut").innerHTML = a > 0 && s > 0 ? fmt(20 * lg(a / s), 1) + "<small> дБ</small>" : "—"; }
+
+// ---------- control questions ----------
+function renderQuest() {
+  const c = calc, L = Math.pow(10, num("qL", 5) / 10), G1 = Math.pow(10, num("qG1", 52) / 10), F = Math.pow(10, num("qF", 10) / 10);
+  const tA = c.tant + c.tlna + (L - 1) * T0 / G1 + L * (F - 1) * T0 / G1;
+  const tB = c.tant + (L - 1) * T0 + L * c.tlna + L * (F - 1) * T0 / G1;
+  $("q1Table").innerHTML = "<tr><th>Схема</th><th class='num'>T_S, К</th><th class='num'>C/N, дБ</th></tr>" +
+    `<tr><td>Рис. 4: МШП → кабель</td><td class="num">${fmt(tA, 1)}</td><td class="num">${fmt(c.cn - 10 * lg(tA / c.ts), 1)}</td></tr>` +
+    `<tr><td>Кабель → МШП</td><td class="num">${fmt(tB, 1)}</td><td class="num">${fmt(c.cn - 10 * lg(tB / c.ts), 1)}</td></tr>` +
+    `<tr class="total"><td>Погіршення</td><td class="num" colspan="2">${fmt(10 * lg(tB / tA), 1)} дБ</td></tr>`;
+  const g2 = look(parseCoord($("qLat").value, "S"), parseCoord($("qLon").value, "WЗ"), c.sat);
+  const fsl2 = 20 * lg(4 * Math.PI * g2.d * 1e3 / c.lam), ts2 = (num("tant", NaN) || tantAuto(g2.el)) + c.tlna;
+  const dG = (c.eirp - num("qEirp", 47)) + (fsl2 - c.fsl) + 10 * lg(ts2 / c.ts), D1 = num("qD", 1.5), k = Math.pow(10, dG / 20);
+  $("q4Table").innerHTML = "<tr><th></th><th class='num'>Тут</th><th class='num'>Там</th></tr>" +
+    `<tr><td>El, °</td><td class="num">${fmt(c.g.el, 1)}</td><td class="num">${fmt(g2.el, 1)}</td></tr>` +
+    `<tr><td>d, км</td><td class="num">${Math.round(c.g.d)}</td><td class="num">${Math.round(g2.d)}</td></tr>` +
+    `<tr><td>FSL, дБ</td><td class="num">${fmt(c.fsl, 2)}</td><td class="num">${fmt(fsl2, 2)}</td></tr>` +
+    `<tr><td>T_S, К</td><td class="num">${fmt(c.ts, 1)}</td><td class="num">${fmt(ts2, 1)}</td></tr>` +
+    `<tr class="total"><td>ΔG = ${fmt(dG, 2)} дБ</td><td class="num" colspan="2">D = ${fmt(D1 * k, 2)} м (×${fmt(k, 2)})</td></tr>`;
+  const eta = Math.pow(10, c.gr / 10) / Math.pow(Math.PI * D1 / c.lam, 2);
+  $("etaOut").innerHTML = "η = " + fmt(eta, 2) + `<small> (G = ${fmt(c.gr, 0)} дБ, D = ${fmt(D1, 2)} м)</small>`;
+}
+
+// ---------- copy ----------
+$("btnCopy").addEventListener("click", () => {
+  const c = calc;
+  const txt = [`Варіант ${vSel.value}: ${c.sat}°E, ${c.f} МГц ${c.pol}, ${c.rs / 1e3} кбод, FEC ${c.fecTxt}`,
+    `El = ${fmt(c.g.el, 2)}°, Az = ${fmt(c.g.az, 2)}°, d = ${Math.round(c.g.d)} км`,
+    `FSL = ${fmt(c.fsl, 2)} дБ; NF = ${fmt(c.nf, 2)} дБ; T_LNA = ${fmt(c.tlna, 1)} К; T_ant = ${fmt(c.tant, 1)} К; T_S = ${fmt(c.ts, 1)} К; B_N = ${fmt(c.bn / 1e6, 2)} МГц`,
+    `C/N = ${fmt(c.cn, 2)} дБ; Es/N0 = ${fmt(c.esn0, 2)} дБ; Eb/N0 = ${fmt(c.ebn0, 2)} дБ; BER = ${fmtBer(c.ber)}`].join("\n");
+  const done = m => $("copyMsg").textContent = m;
+  navigator.clipboard?.writeText(txt).then(() => done("Скопійовано"), () => done("Не вдалося — виділіть таблицю вручну")) ?? done("Буфер недоступний");
+});
+
+// ---------- inputs ----------
+document.querySelectorAll('[data-panel="budget"] input, [data-panel="budget"] select, [data-panel="quest"] input').forEach(el => el.addEventListener("input", recalc));
+
+// =====================================================================
+// AR finder: камера + GPS + орієнтація пристрою
+// Світова система: X — схід, Y — північ, Z — вгору. Камера дивиться вздовж −z пристрою.
+// =====================================================================
+const cv = $("cv"), ctx = cv.getContext("2d"), video = $("video");
+let ori = null, oriSource = "", smooth = null, rafOn = false;
+if (!window.isSecureContext) $("secureNote").textContent = "Сторінку відкрито не через https: браузер, ймовірно, заблокує камеру, GPS і датчики. Відкрийте файл з https-адреси.";
+
+// Діагностика: чому браузер не дає доступ
+async function diagnose() {
+  const ua = navigator.userAgent, items = [];
+  const bad = (t, fix) => items.push(`<div><span class="bad">✕ ${t}</span><span style="text-align:right">${fix}</span></div>`);
+  const good = t => items.push(`<div><span class="ok">✓ ${t}</span><span></span></div>`);
+  if (!window.isSecureContext) bad("Не https-адреса", "викладіть файл на GitHub Pages або Netlify і відкрийте https-посилання");
+  else good("Безпечне з'єднання");
+  if (/Electron|Claude/i.test(ua)) bad("Відкрито в панелі Claude", "тут камера й датчики заблоковані завжди — відкрийте посилання на телефоні");
+  if (!/SISLabApp/.test(ua) && /Telegram|Instagram|FBAN|FBAV|Line\/|Viber|; wv\)/i.test(ua)) bad("Вбудований браузер програми", "меню ⋮ → «Відкрити в Chrome / Safari»");
+  if (!/Android|iPhone|iPad|iPod/i.test(ua)) bad("Це не телефон", "на ПК немає гіроскопа й компаса — відкрийте на смартфоні");
+  if (navigator.permissions?.query) {
+    for (const [name, label, fix] of [["camera", "Камера", "значок біля адреси → Дозволи → Камера → Дозволити"],
+                                      ["geolocation", "Геолокація", "значок біля адреси → Дозволи → Місцезнаходження; увімкніть GPS у телефоні"]]) {
+      try { const s = await navigator.permissions.query({ name }); s.state === "denied" ? bad(`${label}: заборонено для сайту`, fix) : good(`${label}: ${s.state === "granted" ? "дозволено" : "буде запит"}`); } catch {}
+    }
+    try { const s = await navigator.permissions.query({ name: "accelerometer" }); if (s.state === "denied") bad("Датчики руху заборонені", "Chrome → Налаштування сайтів → Датчики руху → Дозволити"); } catch {}
+  }
+  if (/iPhone|iPad|iPod/i.test(ua) && typeof DeviceOrientationEvent?.requestPermission !== "function") items.push(`<div><span class="warn">! Старий iOS</span><span style="text-align:right">Налаштування → Safari → Доступ до руху й орієнтації</span></div>`);
+  $("diag").innerHTML = `<div><b>Діагностика доступу</b><span></span></div>` + items.join("");
+}
+diagnose();
+
+function resizeCanvas() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+}
+window.addEventListener("resize", resizeCanvas);
+
+$("btnStart").addEventListener("click", async () => {
+  $("arStart").hidden = true; $("hud").hidden = false; resizeCanvas();
+  // орієнтація (iOS вимагає дозволу саме з кліку)
+  if ("ondeviceorientationabsolute" in window) window.addEventListener("deviceorientationabsolute", e => onOri(e, "абсолютна"));
+  window.addEventListener("deviceorientation", e => onOri(e, "звичайна"));
+  $("stOri").textContent = "очікую даних…";
+  let oriDenied = false;
+  try {
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+      oriDenied = (await DeviceOrientationEvent.requestPermission()) !== "granted";
+    }
+  } catch { oriDenied = true; }
+  setTimeout(() => { if (!ori) $("stOri").textContent = oriDenied ? "доступ заборонено" : "немає даних (у пристрої немає датчика?)"; }, 3000);
+  // GPS
+  if ("geolocation" in navigator) {
+    $("stGps").textContent = "пошук…";
+    navigator.geolocation.watchPosition(p => {
+      gpsFix = p.coords; $("stGps").textContent = `±${Math.round(p.coords.accuracy)} м`;
+      if ($("useGps").checked) { $("lat").value = p.coords.latitude.toFixed(5); $("lon").value = p.coords.longitude.toFixed(5); recalc(); }
+    }, err => { $("stGps").textContent = err.code === 1 ? "доступ заборонено" : "немає сигналу"; }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
+  } else $("stGps").textContent = "не підтримується";
+  // камера
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+    video.srcObject = s; await video.play().catch(() => {}); $("stCam").textContent = "увімкнена";
+  } catch { $("stCam").textContent = "недоступна — режим без зображення"; }
+  diagnose();
+  if (!rafOn) { rafOn = true; requestAnimationFrame(frame); }
+});
+
+function onOri(e, src) {
+  if (e.alpha == null && e.webkitCompassHeading == null) return;
+  if (src === "звичайна" && oriSource === "абсолютна") return; // абсолютна має пріоритет
+  let a = e.alpha;
+  if (typeof e.webkitCompassHeading === "number") { a = -e.webkitCompassHeading; src = "компас iOS"; }
+  else if (src === "звичайна" && !e.absolute) src = "відносна (без компаса)";
+  oriSource = src; ori = { a: a * D2R, b: e.beta * D2R, g: e.gamma * D2R };
+  $("stOri").textContent = src;
+}
+// R = Rz(α)·Rx(β)·Ry(γ); повертає світові вектори осей пристрою
+function deviceBasis(o) {
+  const ca = Math.cos(o.a), sa = Math.sin(o.a), cb = Math.cos(o.b), sb = Math.sin(o.b), cg = Math.cos(o.g), sg = Math.sin(o.g);
+  const m = [ [ca*cg - sa*sb*sg, -sa*cb, ca*sg + sa*sb*cg],
+              [sa*cg + ca*sb*sg,  ca*cb, sa*sg - ca*sb*cg],
+              [-cb*sg,            sb,    cb*cg] ];
+  const col = j => [m[0][j], m[1][j], m[2][j]];
+  return { x: col(0), y: col(1), z: col(2) };
+}
+const dot = (p, q) => p[0]*q[0] + p[1]*q[1] + p[2]*q[2];
+const add = (p, q, k) => [p[0] + q[0]*k, p[1] + q[1]*k, p[2] + q[2]*k];
+const norm = p => { const l = Math.hypot(p[0], p[1], p[2]) || 1; return [p[0]/l, p[1]/l, p[2]/l]; };
+const dirVec = (az, el) => [Math.cos(el*D2R) * Math.sin(az*D2R), Math.cos(el*D2R) * Math.cos(az*D2R), Math.sin(el*D2R)];
+const wrap180 = x => ((x + 540) % 360) - 180;
+
+function frame() {
+  requestAnimationFrame(frame);
+  const W = cv.width, H = cv.height, dpr = window.devicePixelRatio || 1; if (!W) return;
+  ctx.clearRect(0, 0, W, H);
+  if (!video.srcObject) { ctx.fillStyle = "#0a1418"; ctx.fillRect(0, 0, W, H); }
+  const c = calc, decl = num("decl", 0);
+  const tgtAzM = c.g.az - decl; // компас дає магнітний азимут
+  $("stPos").textContent = isFinite(c.lat) ? `${fmt(c.lat, 4)}°, ${fmt(c.lon, 4)}°` : "—";
+  $("stTgt").textContent = `${fmt(c.g.az, 1)}° / ${fmt(c.g.el, 1)}°`;
+  if (!ori) { drawCenter(W, H, dpr); $("hudGuide").textContent = "Чекаю на датчики орієнтації…"; $("hudLine1").textContent = `Ціль ${c.sat}°E: Az ${fmt(c.g.az, 1)}° (магн. ${fmt(tgtAzM, 1)}°), El ${fmt(c.g.el, 1)}°`; $("hudLine2").textContent = ""; return; }
+
+  // базис камери з урахуванням повороту екрана
+  const B = deviceBasis(ori);
+  const ang = ((screen.orientation && screen.orientation.angle) || window.orientation || 0) * D2R;
+  let fwd = B.z.map(v => -v);
+  let right = norm(add(B.x.map(v => v * Math.cos(ang)), B.y, -Math.sin(ang)));
+  let up = norm(add(B.x.map(v => v * Math.sin(ang)), B.y, Math.cos(ang)));
+  if (!smooth) smooth = { fwd, right, up };
+  const k = .25;
+  smooth.fwd = norm(add(smooth.fwd.map(v => v * (1 - k)), fwd, k));
+  smooth.right = norm(add(smooth.right.map(v => v * (1 - k)), right, k));
+  smooth.up = norm(add(smooth.up.map(v => v * (1 - k)), up, k));
+  ({ fwd, right, up } = smooth);
+
+  const camAzM = (Math.atan2(fwd[0], fwd[1]) / D2R + 360) % 360, camEl = Math.asin(Math.max(-1, Math.min(1, fwd[2]))) / D2R;
+  const fpx = (W / 2) / Math.tan(num("fov", 60) * D2R / 2), cx = W / 2, cy = H / 2;
+  const proj = t => { const z = dot(t, fwd); if (z < .05) return null; return [cx + dot(t, right) / z * fpx, cy - dot(t, up) / z * fpx]; };
+
+  // горизонт
+  ctx.lineWidth = 1.5 * dpr; ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.setLineDash([]);
+  polyline(a => proj(dirVec(a, 0)), 0, 360, 3);
+  // сторони світу на горизонті (магнітні з урахуванням схилення)
+  ctx.font = `600 ${13 * dpr}px Golos Text, system-ui`; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.7)";
+  [["Пн", 0], ["Сх", 90], ["Пд", 180], ["Зх", 270], ["ПдЗх", 225], ["ПдСх", 135]].forEach(([n, a]) => { const p = proj(dirVec(a - decl, 0)); if (p) ctx.fillText(n, p[0], p[1] - 6 * dpr); });
+  // геостаціонарна дуга (пояс Кларка)
+  ctx.strokeStyle = "rgba(240,178,58,.75)"; ctx.setLineDash([6 * dpr, 6 * dpr]); ctx.lineWidth = 1.5 * dpr;
+  polyline(s => { const g = look(c.lat, c.lon, s); return g.el > -2 ? proj(dirVec(g.az - decl, g.el)) : null; }, c.lon - 80, c.lon + 80, 1);
+  ctx.setLineDash([]);
+  const placed = [proj(dirVec(tgtAzM, c.g.el))].filter(Boolean);
+  ARC_SATS.forEach(s => {
+    if (Math.abs(s - c.sat) < .05) return; const g = look(c.lat, c.lon, s); const p = g.el > 0 && proj(dirVec(g.az - decl, g.el));
+    if (!p) return; ctx.fillStyle = "rgba(240,178,58,.9)"; ctx.beginPath(); ctx.arc(p[0], p[1], 3 * dpr, 0, 7); ctx.fill();
+    if (placed.some(q => Math.abs(q[0] - p[0]) < 46 * dpr && Math.abs(q[1] - p[1]) < 18 * dpr)) return;
+    placed.push(p); ctx.font = `${11 * dpr}px JetBrains Mono, monospace`; ctx.fillText(s + "°E", p[0], p[1] - 8 * dpr);
+  });
+  // ціль
+  const t = dirVec(tgtAzM, c.g.el), sep = Math.acos(Math.max(-1, Math.min(1, dot(t, fwd)))) / D2R, locked = sep < 2;
+  const p = proj(t), col = locked ? "#4fe08e" : "#ffb02e";
+  if (p && p[0] > -40 && p[0] < W + 40 && p[1] > -40 && p[1] < H + 40) {
+    ctx.strokeStyle = col; ctx.lineWidth = 3 * dpr; ctx.beginPath(); ctx.arc(p[0], p[1], 22 * dpr, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p[0] - 32 * dpr, p[1]); ctx.lineTo(p[0] - 14 * dpr, p[1]); ctx.moveTo(p[0] + 14 * dpr, p[1]); ctx.lineTo(p[0] + 32 * dpr, p[1]); ctx.stroke();
+    ctx.fillStyle = col; ctx.font = `700 ${14 * dpr}px Golos Text, system-ui`; ctx.fillText(`${c.sat}°E`, p[0], p[1] - 30 * dpr);
+  } else { // стрілка до краю екрана
+    const vx = dot(t, right), vy = -dot(t, up), l = Math.hypot(vx, vy) || 1, ux = vx / l, uy = vy / l;
+    const sc = Math.min((W / 2 - 34 * dpr) / Math.abs(ux || 1e-6), (H / 2 - 34 * dpr) / Math.abs(uy || 1e-6));
+    const ax = cx + ux * sc, ay = cy + uy * sc, an = Math.atan2(uy, ux);
+    ctx.save(); ctx.translate(ax, ay); ctx.rotate(an); ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(20 * dpr, 0); ctx.lineTo(-10 * dpr, -13 * dpr); ctx.lineTo(-4 * dpr, 0); ctx.lineTo(-10 * dpr, 13 * dpr); ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  drawCenter(W, H, dpr, locked);
+
+  const dAz = wrap180(tgtAzM - camAzM), dEl = c.g.el - camEl;
+  const guide = locked ? "Наведено на супутник" :
+    [Math.abs(dAz) >= 1 ? (dAz > 0 ? "Праворуч " : "Ліворуч ") + fmt(Math.abs(dAz), 0) + "°" : "", Math.abs(dEl) >= 1 ? (dEl > 0 ? "вгору " : "вниз ") + fmt(Math.abs(dEl), 0) + "°" : ""].filter(Boolean).join(" · ");
+  $("hudGuide").innerHTML = locked ? `<span class="on">● ${guide}</span>` : guide;
+  $("hudLine1").textContent = `Ціль ${c.sat}°E: Az ${fmt(c.g.az, 1)}° (магн. ${fmt(tgtAzM, 1)}°), El ${fmt(c.g.el, 1)}°`;
+  $("hudLine2").textContent = `Камера: Az ${fmt((camAzM + decl + 360) % 360, 1)}°, El ${fmt(camEl, 1)}° · відхилення ${fmt(sep, 1)}°`;
+  $("stCamDir").textContent = `${fmt((camAzM + decl + 360) % 360, 1)}° / ${fmt(camEl, 1)}°`;
+  if (oriSource.startsWith("відносна")) $("hudLine2").textContent += " · компас недоступний, азимут неточний";
+}
+function polyline(fn, from, to, step) {
+  ctx.beginPath(); let pen = false, last = null;
+  for (let v = from; v <= to + 1e-9; v += step) {
+    const p = fn(v);
+    if (p && last && Math.hypot(p[0] - last[0], p[1] - last[1]) < cv.width) { ctx.lineTo(p[0], p[1]); }
+    else if (p) { ctx.moveTo(p[0], p[1]); }
+    last = p; pen = !!p;
+  }
+  ctx.stroke();
+}
+function drawCenter(W, H, dpr, locked) {
+  ctx.strokeStyle = locked ? "#4fe08e" : "rgba(255,255,255,.85)"; ctx.lineWidth = 1.5 * dpr; ctx.setLineDash([]);
+  const cx = W / 2, cy = H / 2, r = 10 * dpr;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.moveTo(cx - 2.2 * r, cy); ctx.lineTo(cx - r, cy); ctx.moveTo(cx + r, cy); ctx.lineTo(cx + 2.2 * r, cy);
+  ctx.moveTo(cx, cy - 2.2 * r); ctx.lineTo(cx, cy - r); ctx.moveTo(cx, cy + r); ctx.lineTo(cx, cy + 2.2 * r); ctx.stroke();
+}
+
+// ---------- boot ----------
+recalc(); mer(); showTab(store.get("tab", "finder"));
+</script>
+</body>
+</html>
